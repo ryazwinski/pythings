@@ -76,7 +76,7 @@ class BodyScale:
         json = simplejson.load(f)
         f.close()
         
-        return(json)
+        return json
 
     def get_user_info(self, user, key):
         '''Implements the withings getbyuserid method
@@ -97,7 +97,7 @@ class BodyScale:
         json=simplejson.load(f)
         f.close()
 
-        return(json)
+        return json
 
     def get_users_list(self, email, password):
         '''Implements the withings getuserslist method
@@ -163,11 +163,29 @@ class BodyScale:
         Required:
             userid - integer withings userid
             key - public key associated with the userid
-            isPublic - True or False.  Settings to False disables sharing.
+            isPublic - 1 or 0.  Settings to 0 disables sharing.
 
         Returns the json response from withings
         '''
-        pass
+        req = 'http://%s:%d/user?action=update' % (self._host, self._port)
+        req += '&userid=%d&publickey=%s&ispublic=%d' % (userid, key, isPublic)
+
+        f = urllib2.urlopen(req)
+        json=simplejson.load(f)
+        f.close()
+
+        return json
+
+    def _notify(self, action, userid, key, url):
+        req = 'http://%s:%d/notify?action=%s' % (self._host, self._port, action)
+        req += '&userid=%d&publickey=%s' % (userid, key)
+        req += '&callbackurl=%s' % urllib2.quote(url, safe='')
+
+        f = urllib2.urlopen(req)
+        json=simplejson.load(f)
+        f.close()
+
+        return json
 
     def subscribe(self, userid, key, url):
         '''Implements the withings subscribe method
@@ -200,8 +218,7 @@ class BodyScale:
 
         Returns the json response from withings
         '''
-
-        pass
+        return self._notify('subscribe', userid, key, url)
 
     def revoke(self, userid, key, url):
         '''Implements the withings revoke method
@@ -219,7 +236,7 @@ class BodyScale:
 
         Returns the json response from withings
         '''
-        pass
+        return self._notify('revoke', userid, key, url)
 
     def check_sub(self, userid, key, url):
         '''Implements the withings get method
@@ -235,4 +252,5 @@ class BodyScale:
 
         Returns the json response from withings
         '''
-        pass
+        return self._notify('get', userid, key, url)
+
