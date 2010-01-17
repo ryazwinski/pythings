@@ -5,8 +5,24 @@ A simple module to wrapper the Withings.com REST api
 import simplejson
 import urllib2
 
-class BodyScale(Object):
+
+class BodyScale:
     '''Class that implements communication with the Withings REST service.'''
+
+    CAT_OBJECTIVE=2
+    CAT_MEASURES=1
+
+    TYPE_WEIGHT=1
+    TYPE_SIZE=4
+    TYPE_FAT_FREE_MASS=5
+    TYPE_FAT_RATIO=6
+    TYPE_FAT_MASS_WEIGHT=8
+
+    ATTR_KNOWN=0
+    ATTR_AMBIGUOUS=1
+    ATTR_MANUAL=2
+    ATTR_CREATION=4
+
     def __init__(self, host='wbsapi.withings.net', port=80,
             proxyhost='', proxyport=80):
         '''Setup communications defaults for the session
@@ -17,10 +33,16 @@ class BodyScale(Object):
             proxyhost - if not '' is the host to proxy http through
             proxyport - if proxyhost is set, this is the http proxy port
         '''
-        pass
+        self._host = host
+        self._port = port
+
+        if proxyhost:
+            proxy = urllib2.ProxyHandler(
+                {"http": "http://%s:%s" % ( proxyhost, proxyport)})
+            opener = urllib2.build_opener(proxy)
+            urllib2.install_opener(opener)
     
-    def get_measurements(self, user, key, startdate, enddate, meastype,
-            lastupdate, category, limit, offset):
+    def get_measurements(self, user, key, **kwargs):
         '''Implements the withings getmeas method
 
         Required:
@@ -38,8 +60,23 @@ class BodyScale(Object):
             offset - combined with limit to page through large datasets,
                      offset skips 'offset' elements from the newest backwards
 
+        Returns the json response from withings
         '''
-        pass
+        req = 'http://%s:%d/measure?action=getmeas&userid=%d&publickey=%s' % (
+            self._host, self._port, user, key)
+
+        optional = ['startdate','enddate','meastype','lastupdate','category',
+            'limit','offset']
+
+        for opt in optional:
+            if kwargs.has_key(opt):
+                req += '&%s=%s' % (opt, kwargs[opt]) 
+
+        f = urllib2.urlopen(req)
+        json = simplejson.load(f)
+        f.close()
+        
+        return(json)
 
     def get_user_info(self, user, key):
         '''Implements the withings getbyuserid method
@@ -53,12 +90,14 @@ class BodyScale(Object):
             user - the withings integer userid
             key - the sharing key for this user
         '''
-        import hashlib
+        req='http://%s:%d/user?action=getbyuserid&userid=%d&publickey=%s' % (
+                self._host, self._port, user, key)
 
-        '''calculate the hash for the password we'll post'''
-        '''see http://www.withings.com/en/api/bodyscale#crypto'''
+        f=urllib2.urlopen(req)
+        json=simplejson.load(f)
+        f.close()
 
-        pass
+        return(json)
 
     def get_users_list(self, email, password):
         '''Implements the withings getuserslist method
@@ -83,9 +122,33 @@ class BodyScale(Object):
         Required:
             email - the user's my.withings.com email address
             password - the user's my.withings.com password
+
+        Returns the json response from withings
         '''
 
-        pass
+        '''calculate the hash for the password we'll post'''
+        '''see http://www.withings.com/en/api/bodyscale#crypto'''
+        import hashlib
+        f = urllib2.urlopen('http://%s:%d/once?action=get' %
+            (self._host, self._port))
+        json = simplejson.load(f)
+        f.close()
+        if json['status'] != 0:
+            raise Exception('Could not communicate with withings')
+
+        once = json['body']['once']
+        passwdMd5 = hashlib.md5(password)
+        rawStr = '%s:%s:%s' % (email, passwdMd5.hexdigest(), once)
+        rawMd5 = hashlib.md5(rawStr)
+
+        f = urllib2.urlopen(
+            'http://%s:%d/account?action=getuserslist&email=%s&hash=%s' %
+            (self._host, self._port, email, rawMd5.hexdigest()))
+
+        json = simplejson.load(f)
+        f.close()
+
+        return json
 
     def update(self, email, key, isPublic):
         '''Implements the withings update method
@@ -101,6 +164,8 @@ class BodyScale(Object):
             userid - integer withings userid
             key - public key associated with the userid
             isPublic - True or False.  Settings to False disables sharing.
+
+        Returns the json response from withings
         '''
         pass
 
@@ -132,6 +197,8 @@ class BodyScale(Object):
             are integers in EPOCH format) and the userid it refers to. It
             is up to the targeted system to issue a measure/getmeas request
             using both figures to retrieve updated data.
+
+        Returns the json response from withings
         '''
 
         pass
@@ -149,6 +216,8 @@ class BodyScale(Object):
             userid - integer withings userid of the target user
             key - public key for this userid
             url - the callback url to unsubscribe
+
+        Returns the json response from withings
         '''
         pass
 
@@ -163,4 +232,7 @@ class BodyScale(Object):
             userid - integer withings userid of the target user
             key - public key for this userid
             url - the callback url to check
+
+        Returns the json response from withings
         '''
+        pass
