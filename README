@@ -1,0 +1,4 @@
+Docs in pythings.py.
+
+Install with setup.py:
+    sudo python setup.py install
